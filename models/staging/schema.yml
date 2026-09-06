@@ -1,0 +1,76 @@
+version: 2
+
+models:
+
+  - name: stg_department
+    description: "Incrementally ingested and standardized Walmart department-level sales data."
+
+    columns:
+      - name: store_id
+        tests:
+          - not_null
+
+      - name: dept_id
+        tests:
+          - not_null
+
+      - name: store_date
+        tests:
+          - not_null
+
+      - name: _ingested_at
+        tests:
+          - not_null
+
+      - name: _file_name
+        tests:
+          - not_null
+
+  - name: stg_fact
+    description: "Incrementally ingested and standardized Walmart store-date data."
+
+    columns:
+      - name: store_id
+        tests:
+          - not_null
+
+      - name: store_date
+        tests:
+          - not_null
+
+      - name: _ingested_at
+        tests:
+          - not_null
+
+      - name: _file_name
+        tests:
+          - not_null
+
+  - name: stg_store
+    description: "Incrementally ingested and standardized Walmart store attributes."
+
+    columns:
+      - name: store_id
+        tests:
+          - not_null
+
+      - name: store_type
+        tests:
+          - not_null
+
+      - name: store_size
+        tests:
+          - not_null
+
+      - name: _ingested_at
+        tests:
+          - not_null
+
+      - name: _file_name
+        tests:
+          - not_null
+
+      - name: store_id
+        tests:
+          - not_null
+          - unique
