@@ -1,0 +1,68 @@
+version: 2
+
+models:
+
+  - name: Walmart_date_dim
+    description: "Date dimension containing one row per Walmart business date."
+
+    columns:
+      - name: Date_id
+        description: "Surrogate key identifying the calendar date."
+        tests:
+          - not_null
+          - unique
+
+      - name: Store_Date
+        description: "Calendar date."
+        tests:
+          - not_null
+          - unique
+
+      - name: IsHoliday
+        description: "Indicates whether the date is a holiday."
+
+      - name: Insert_date
+        description: "Timestamp when the row was inserted into the dimension."
+        tests:
+          - not_null
+
+      - name: Update_date
+        description: "Timestamp when the row was last updated."
+        tests:
+          - not_null
+
+  - name: Walmart_store_department_dim
+    description: "SCD Type 1 dimension containing one row per Store and Department."
+
+    columns:
+      - name: store_id
+        description: "Walmart store identifier."
+        tests:
+          - not_null
+
+      - name: dept_id
+        description: "Walmart department identifier."
+        tests:
+          - not_null
+
+      - name: store_type
+        description: "Store type associated with the store."
+        tests:
+          - not_null
+
+      - name: store_size
+        description: "Store size associated with the store."
+        tests:
+          - not_null
+
+      - name: insert_date
+        description: "Timestamp when the Store + Department row was first inserted."
+        tests:
+          - not_null
+
+      - name: update_date
+        description: "Timestamp when the Store + Department row was last changed."
+        tests:
+          - not_null
+
+
