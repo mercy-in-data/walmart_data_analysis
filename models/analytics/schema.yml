@@ -65,4 +65,57 @@ models:
         tests:
           - not_null
 
+  - name: Walmart_fact_table
+    description: "Fact table containing Walmart store, department, date, and sales-related measures."
+
+    columns:
+
+      - name: store_id
+        description: "Foreign key identifying the Walmart store."
+        tests:
+          - not_null
+
+      - name: dept_id
+        description: "Foreign key identifying the department."
+        tests:
+          - not_null
+
+      - name: date_id
+        description: "Foreign key identifying the business date."
+        tests:
+          - not_null
+
+      - name: store_size
+        description: "Size of the Walmart store."
+
+      - name: store_weekly_sales
+        description: "Weekly sales for the store and department."
+
+      - name: fuel_price
+        description: "Fuel price for the store and date."
+
+      - name: temperature
+        description: "Temperature for the store and date."
+
+      - name: unemployment
+        description: "Unemployment rate for the store and date."
+
+      - name: cpi
+        description: "Consumer Price Index for the store and date."
+
+      - name: markdown1
+        description: "Markdown value 1 for the store and date."
+
+      - name: markdown2
+        description: "Markdown value 2 for the store and date."
+
+      - name: markdown3
+        description: "Markdown value 3 for the store and date."
+
+      - name: markdown4
+        description: "Markdown value 4 for the store and date."
+
+      - name: markdown5
+        description: "Markdown value 5 for the store and date."
+
 
