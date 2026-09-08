@@ -197,22 +197,3 @@ The analytics layer was queried from Python using the Snowflake Connector for Py
 
 ![Holiday vs. Non-Holiday Sales](holiday_vs_nonholiday_sales.png)
 
-### Visualization Design Approach
-
-For each visualization, the target observation was defined before writing the SQL query.
-
-```text
-Question
-   ↓
-Measures
-   ↓
-Relevant dimensions
-   ↓
-Target observation / grain
-   ↓
-SQL aggregation
-   ↓
-Visualization
-```
-
-This ensured that measures were aggregated to the appropriate grain before being visualized and helped prevent double counting caused by the underlying Store + Department + Date fact grain.
