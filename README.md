@@ -1,13 +1,12 @@
-````markdown
 # Data Quality Findings & Treatment
 
-| **Finding**                   | **Treatment** |
-| ----------------------------- | ------------- |
-| Negative `Weekly_Sales`       | **Preserve**  |
+| **Finding**                    | **Treatment** |
+| ------------------------------ | ------------- |
+| Negative `Weekly_Sales`        | **Preserve**  |
 | Extremely large `Weekly_Sales` | **Preserve**  |
-| NULL Markdown                 | **Preserve**  |
-| Negative Markdown             | **Preserve**  |
-| NULL CPI/Unemployment         | **Preserve**  |
+| NULL Markdown                  | **Preserve**  |
+| Negative Markdown              | **Preserve**  |
+| NULL CPI/Unemployment          | **Preserve**  |
 
 **Cleaning approach:** Raw source data is preserved unchanged. Technical cleaning and standardization are performed in dbt staging. Values requiring business interpretation are preserved rather than modified or imputed without an established business rule.
 
@@ -17,14 +16,18 @@ Uploaded original CSVs to S3:
 
 ```text
 raw/
-├── department.csv
-├── fact.csv
-└── store.csv
-````
+├── department/
+│   └── department.csv
+├── fact/
+│   └── fact.csv
+└── store/
+    └── stores.csv
+```
 
-* Created Snowflake `WALMART_DB.RAW` schema, external stage, file format, and raw tables.
+* Created Snowflake `WALMART_DB.RAW` schema, external stages, file format, and raw tables.
 * Loaded CSVs using `COPY INTO`.
 * Configured `NA` values in `fact.csv` to load as `NULL`.
+* Added ingestion metadata using `_ingested_at` and `_file_name`.
 * Verified row counts:
 
   * `DEPARTMENT`: 421,570
@@ -123,14 +126,91 @@ The incremental pipeline simulates the arrival of new source files and validates
 **Incremental behavior validated**
 
 | **Model**                      | **Baseline** | **After Incremental Load** | **Expected Behavior**                         |
-| ------------------------------ | ------------ | -------------------------- | --------------------------------------------- |
-| `Walmart_date_dim`             | 143          | 144                        | Rebuilt with new business date                |
-| `Walmart_store_department_dim` | 3,331        | 3,331                      | No change; existing SCD1 attributes unchanged |
-| `Walmart_fact_table`           | 421,570      | 421,571                    | New Store + Department + Date record appended |
+| ------------------------------ | -----------: | -------------------------: | --------------------------------------------- |
+| `Walmart_date_dim`             |          143 |                        144 | Rebuilt with new business date                |
+| `Walmart_store_department_dim` |        3,331 |                      3,331 | No change; existing SCD1 attributes unchanged |
+| `Walmart_fact_table`           |      421,570 |                    421,571 | New Store + Department + Date record appended |
 
 **Design decision**
 
 Incremental processing is applied according to the role and grain of each model. Staging identifies newly ingested records using `_ingested_at`, while downstream analytical models determine whether those records represent new dimension records, changed dimension attributes, or new fact records based on their business keys and defined grains.
 
+## Visualization & Analytics
 
+The analytics layer was queried from Python using the Snowflake Connector for Python. SQL was used to define the required observation grain and aggregation before the results were visualized with Python and Matplotlib.
 
+### Average Weekly Sales by Store
+
+**Question:** What is the average weekly sales for each store across the available business dates?
+
+**Target observation:** One store.
+
+![Average Weekly Sales by Store](avg_weekly_sales.png)
+
+### Total Sales by Store Type
+
+**Question:** How do total sales compare across Walmart store types?
+
+**Target observation:** One store type.
+
+![Total Sales by Store Type](total_weekly_sales_type.png)
+
+### Total Sales by Year
+
+**Question:** How do total sales vary by year?
+
+**Target observation:** One year.
+
+![Total Sales by Year](total_sales_year.png)
+
+### Weekly Sales by Store Type Over Time
+
+**Question:** How do weekly sales for each store type change over time?
+
+**Target observation:** One store type on one business date.
+
+![Weekly Sales by Store Type Over Time](weekly_sales_type_time.png)
+
+### Weekly Sales vs. Store Size
+
+**Question:** Is there a relationship between store size and weekly sales?
+
+**Target observation:** One store on one business date.
+
+![Weekly Sales vs. Store Size](weekly_sales_vs_storesize.png)
+
+### Weekly Sales vs. Temperature
+
+**Question:** Is there a relationship between temperature and weekly sales?
+
+**Target observation:** One business date.
+
+![Weekly Sales vs. Temperature](weekly_sales_vs_temp.png)
+
+### Holiday vs. Non-Holiday Sales
+
+**Question:** How do total sales compare between holiday and non-holiday dates?
+
+**Target observation:** One holiday category.
+
+![Holiday vs. Non-Holiday Sales](holiday_vs_nonholiday_sales.png)
+
+### Visualization Design Approach
+
+For each visualization, the target observation was defined before writing the SQL query.
+
+```text
+Question
+   ↓
+Measures
+   ↓
+Relevant dimensions
+   ↓
+Target observation / grain
+   ↓
+SQL aggregation
+   ↓
+Visualization
+```
+
+This ensured that measures were aggregated to the appropriate grain before being visualized and helped prevent double counting caused by the underlying Store + Department + Date fact grain.
