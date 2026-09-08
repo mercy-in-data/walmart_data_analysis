@@ -1,4 +1,6 @@
-# Data Quality Findings & Treatment
+# BI Walmart Data Analysis
+
+## Data Quality Findings & Treatment
 
 | **Finding**                    | **Treatment** |
 | ------------------------------ | ------------- |
