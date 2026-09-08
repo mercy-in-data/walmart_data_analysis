@@ -1,0 +1,121 @@
+version: 2
+
+models:
+
+  - name: Walmart_date_dim
+    description: "Date dimension containing one row per Walmart business date."
+
+    columns:
+      - name: Date_id
+        description: "Surrogate key identifying the calendar date."
+        tests:
+          - not_null
+          - unique
+
+      - name: Store_Date
+        description: "Calendar date."
+        tests:
+          - not_null
+          - unique
+
+      - name: IsHoliday
+        description: "Indicates whether the date is a holiday."
+
+      - name: Insert_date
+        description: "Timestamp when the row was inserted into the dimension."
+        tests:
+          - not_null
+
+      - name: Update_date
+        description: "Timestamp when the row was last updated."
+        tests:
+          - not_null
+
+  - name: Walmart_store_department_dim
+    description: "SCD Type 1 dimension containing one row per Store and Department."
+
+    columns:
+      - name: store_id
+        description: "Walmart store identifier."
+        tests:
+          - not_null
+
+      - name: dept_id
+        description: "Walmart department identifier."
+        tests:
+          - not_null
+
+      - name: store_type
+        description: "Store type associated with the store."
+        tests:
+          - not_null
+
+      - name: store_size
+        description: "Store size associated with the store."
+        tests:
+          - not_null
+
+      - name: insert_date
+        description: "Timestamp when the Store + Department row was first inserted."
+        tests:
+          - not_null
+
+      - name: update_date
+        description: "Timestamp when the Store + Department row was last changed."
+        tests:
+          - not_null
+
+  - name: Walmart_fact_table
+    description: "Fact table containing Walmart store, department, date, and sales-related measures."
+
+    columns:
+
+      - name: store_id
+        description: "Foreign key identifying the Walmart store."
+        tests:
+          - not_null
+
+      - name: dept_id
+        description: "Foreign key identifying the department."
+        tests:
+          - not_null
+
+      - name: date_id
+        description: "Foreign key identifying the business date."
+        tests:
+          - not_null
+
+      - name: store_size
+        description: "Size of the Walmart store."
+
+      - name: store_weekly_sales
+        description: "Weekly sales for the store and department."
+
+      - name: fuel_price
+        description: "Fuel price for the store and date."
+
+      - name: temperature
+        description: "Temperature for the store and date."
+
+      - name: unemployment
+        description: "Unemployment rate for the store and date."
+
+      - name: cpi
+        description: "Consumer Price Index for the store and date."
+
+      - name: markdown1
+        description: "Markdown value 1 for the store and date."
+
+      - name: markdown2
+        description: "Markdown value 2 for the store and date."
+
+      - name: markdown3
+        description: "Markdown value 3 for the store and date."
+
+      - name: markdown4
+        description: "Markdown value 4 for the store and date."
+
+      - name: markdown5
+        description: "Markdown value 5 for the store and date."
+
+
