@@ -1,7 +1,25 @@
-{{ config(
-    materialized='incremental',
-    incremental_strategy='append'
-) }}
+{% snapshot walmart_fact_snapshot %}
+
+{{
+    config(
+        strategy='check',
+        unique_key=['store_id', 'dept_id', 'date_id'],
+        check_cols=[
+            'store_size',
+            'store_weekly_sales',
+            'fuel_price',
+            'temperature',
+            'unemployment',
+            'cpi',
+            'markdown1',
+            'markdown2',
+            'markdown3',
+            'markdown4',
+            'markdown5'
+        ],
+        schema='ANALYTICS'
+    )
+}}
 
 WITH source_data AS (
 
@@ -56,18 +74,4 @@ SELECT
 
 FROM source_data
 
-{% if is_incremental() %}
-
-WHERE NOT EXISTS (
-
-    SELECT 1
-    FROM {{ this }} tgt
-
-    WHERE tgt.store_id = source_data.store_id
-      AND tgt.dept_id = source_data.dept_id
-      AND tgt.date_id = source_data.date_id
-
-)
-
-{% endif %}
-
+{% endsnapshot %}
