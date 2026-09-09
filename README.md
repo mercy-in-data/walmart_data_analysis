@@ -30,7 +30,7 @@ raw/
 * Loaded CSVs using `COPY INTO`.
 * Configured `NA` values in `fact.csv` to load as `NULL`.
 * Added ingestion metadata using `_ingested_at` and `_file_name`.
-* Verified row counts:
+* Verified baseline row counts:
 
   * `DEPARTMENT`: 421,570
   * `FACT`: 8,190
@@ -54,15 +54,13 @@ The staging layer transforms the RAW Walmart data into standardized, incremental
 * Preserved source business values requiring business interpretation rather than modifying or imputing them without an established rule.
 * Implemented incremental dbt models using `_ingested_at` to identify newly ingested RAW records.
 * Retained `_ingested_at` and `_file_name` as ingestion metadata.
-* Validated staging grains:
+* Defined source grains:
 
   * `stg_department`: Store + Dept + Date
   * `stg_fact`: Store + Date
   * `stg_store`: Store
-* Added dbt data-quality tests for required fields, ingestion metadata, and grain uniqueness.
-* All staging tests passed.
 
-**Design decision:** Staging handles technical standardization and incremental ingestion. Business change detection and dimensional/fact-table logic are handled downstream in the analytical layer.
+**Design decision:** Staging handles technical standardization and incremental ingestion. It preserves newly ingested records, including re-ingested versions of an existing business key. Business change detection and dimensional/fact-table logic are handled downstream in the analytical layer.
 
 ### Analytics Layer
 
@@ -70,72 +68,103 @@ The analytics layer transforms standardized staging data into dimensional and fa
 
 **Models**
 
-* `Walmart_date_dim` — date dimension
+* `Walmart_date_dim` — Date dimension
 * `Walmart_store_department_dim` — Store + Department dimension
-* `Walmart_fact_table` — Store + Department + Date fact table
+* `Walmart_fact_snapshot` — Store + Department + Date fact snapshot
 
 **Key deliverables**
 
 * Defined the target grain for each analytical model.
 * Validated source grains and join relationships before building downstream models.
 * Built `Walmart_date_dim` at Date grain with one row per business date.
+* Implemented `Walmart_date_dim` as an incremental SCD Type 1 model.
 * Built `Walmart_store_department_dim` at Store + Department grain as an SCD Type 1 dimension.
 * Implemented SCD Type 1 logic to:
 
   * Insert new Store + Department combinations.
   * Update existing dimension records only when attributes change.
   * Leave unchanged records untouched.
-* Built `Walmart_fact_table` at Store + Department + Date grain.
-* Implemented the fact table as an append-only incremental model.
-* Prevented duplicate fact records using the Store + Department + Date business grain.
+* Built `Walmart_fact_snapshot` at Store + Department + Date grain.
+* Implemented the fact snapshot using dbt's SCD Type 2 snapshot functionality.
+* Used check-based change detection because the source data does not contain a true business `updated_at` timestamp.
+* Preserved historical versions of changed fact observations.
 * Joined department-level sales with store-level attributes, store/date-level economic data, and the date dimension.
-* Established `Store_id`, `Dept_id`, and `Date_id` as dimensional keys in the fact table.
+* Established `Store_id`, `Dept_id`, and `Date_id` as dimensional keys in the fact snapshot.
 * Preserved NULL and unusual source values in analytical models rather than applying unsupported business assumptions.
-* Added dbt tests for analytical model requirements and fact-table grain.
+* Added dbt tests for analytical model requirements and business grain.
 * All analytical model tests passed.
 
 **Design decisions**
 
 * Dimensions contain descriptive attributes and are maintained according to their required change behavior.
 * The Store + Department dimension uses SCD Type 1 because the requirement is to maintain the current attribute value rather than historical versions.
-* The fact table is append-only because its records represent historical Store + Department + Date measurements.
-* The fact table does not update previously recorded business events when new data is ingested.
-* Incremental processing is based on business grain rather than simply using the latest date, preventing duplicate historical records.
+* The Date dimension uses incremental SCD Type 1 logic so newly available business dates can be inserted without rebuilding the full table.
+* The fact snapshot uses SCD Type 2 because the project requirement is to retain historical versions when an existing Store + Department + Date observation changes.
+* Staging uses `_ingested_at` to identify newly ingested records, while the fact snapshot determines whether the latest business-key state has changed.
 
 ### Incremental Pipeline
 
-The incremental pipeline simulates the arrival of new source files and validates that newly ingested records flow through RAW, staging, and analytical models without duplicating existing data.
+The incremental pipeline simulates the arrival of new source files and validates that newly ingested records flow through RAW, staging, and analytical models without incorrectly duplicating or overwriting historical data.
+
+**Incremental test data**
+
+The incremental department file contained:
+
+* An existing `Store + Dept + Date` observation with changed `Weekly_Sales`:
+
+  * `45 + 98 + 2012-10-26`
+  * `Weekly_Sales`: `1076.8 → 806.8`
+
+* A new `Store + Dept + Date` observation:
+
+  * `1 + 1 + 2012-10-27`
+  * `Weekly_Sales`: `1050.2`
+
+The incremental fact file contained the corresponding `Store + Date` record for `1 + 2012-10-27`.
 
 **Key deliverables**
 
 * Simulated a subsequent source-system load by adding incremental department and fact CSV files to their respective S3 prefixes.
 * Re-ran `COPY INTO` to ingest newly arrived files into Snowflake RAW tables.
-* Verified that previously loaded files were not reprocessed.
+* Verified that the incremental records were added without reloading the original source records.
 * Verified ingestion metadata using `_file_name` and `_ingested_at`.
 * Incrementally processed newly ingested records in the dbt staging models using `_ingested_at` as the ingestion watermark.
-* Verified staging row counts increased only for datasets receiving new records:
+* Verified staging row counts increased as expected:
 
-  * `STG_DEPARTMENT`: 421,570 → 421,571
+  * `STG_DEPARTMENT`: 421,570 → 421,572
   * `STG_FACT`: 8,190 → 8,191
   * `STG_STORE`: 45 → 45
-* Rebuilt the date dimension to incorporate the newly available business date.
-* Verified that the Store + Department SCD Type 1 dimension remained unchanged because the existing business key and attributes did not change.
-* Verified that the append-only fact table received the new Store + Department + Date record.
-* Verified that existing fact records were not duplicated.
+* Verified that the Date dimension incorporated the new `2012-10-27` business date.
+* Verified that the Store + Department SCD Type 1 dimension remained unchanged because the existing business keys and attributes did not change.
+* Verified that the fact snapshot captured the new Store + Department + Date observation.
+* Verified that the changed `45 + 98 + 2012-10-26` observation produced two SCD Type 2 versions.
+* Verified that the previous fact version was closed and the new version remained current.
+* Verified that all relevant dates in `STG_DEPARTMENT` exist in the Date dimension.
 * Revalidated analytical model counts and grain after the incremental load.
-* All incremental pipeline tests produced the expected results.
 
 **Incremental behavior validated**
 
-| **Model**                      | **Baseline** | **After Incremental Load** | **Expected Behavior**                         |
-| ------------------------------ | -----------: | -------------------------: | --------------------------------------------- |
-| `Walmart_date_dim`             |          143 |                        144 | Rebuilt with new business date                |
-| `Walmart_store_department_dim` |        3,331 |                      3,331 | No change; existing SCD1 attributes unchanged |
-| `Walmart_fact_table`           |      421,570 |                    421,571 | New Store + Department + Date record appended |
+| **Model**                      | **Baseline** | **After Incremental Load** | **Expected Behavior**                                   |
+| ------------------------------ | -----------: | -------------------------: | ------------------------------------------------------- |
+| `Walmart_date_dim`             |          143 |                        144 | Insert new business date                                |
+| `Walmart_store_department_dim` |        3,331 |                      3,331 | No change; existing SCD1 attributes unchanged           |
+| `Walmart_fact_snapshot`        |      421,570 |                    421,572 | Capture new observation and changed observation as SCD2 |
+
+**SCD Type 2 change validation**
+
+For `Store 45 + Dept 98 + Date 2012-10-26`, the fact snapshot contained two historical versions:
+
+```text
+Store  Dept  Date        Weekly Sales
+45     98    2012-10-26  1076.8
+45     98    2012-10-26   806.8
+```
+
+The original version was closed with `dbt_valid_to`, while the new version remained current with a NULL `dbt_valid_to`.
 
 **Design decision**
 
-Incremental processing is applied according to the role and grain of each model. Staging identifies newly ingested records using `_ingested_at`, while downstream analytical models determine whether those records represent new dimension records, changed dimension attributes, or new fact records based on their business keys and defined grains.
+Incremental processing is applied according to the role and grain of each model. Staging identifies newly ingested records using `_ingested_at`. Downstream analytical models then determine whether those records represent new dates, new dimension business keys, changed dimension attributes, or changed/new fact observations.
 
 ## Visualization & Analytics
 
